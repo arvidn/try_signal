@@ -3,6 +3,7 @@ matrix:
   include:
     - env: toolset=gcc
     - os: osx
+      osx_image: xcode8
       env: toolset=darwin
 
 branches:
