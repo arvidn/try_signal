@@ -1,0 +1,8 @@
+import package ;
+
+lib try_signal : signal_error_code.cpp try_signal.cpp ;
+
+exe test : test.cpp : <library>try_signal ;
+
+package.install stage_test : <location>. : test ;
+
