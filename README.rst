@@ -1,6 +1,9 @@
 try_signal
 ==========
 
+.. image:: https://travis-ci.org/arvidn/try_signal.svg?branch=master
+    :target: https://travis-ci.org/arvidn/try_signal
+
 ``try_signal`` is a simple abstraction to *locally* handle signals and turning
 them into C++ exceptions. This is especially useful when performing disk I/O via
 memory mapped files, where I/O errors are reported as ``SIGBUS`` and
