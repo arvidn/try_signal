@@ -10,19 +10,21 @@ struct A
 	char const* _name;
 };
 
-int main() try
+int main()
 {
-	A a1("a1");
+	try
 	{
-		try_signal _try;
-		A a2("a2");
-		raise(SIGSEGV);
+		A a1("a1");
+		{
+			try_signal _try;
+			A a2("a2");
+			raise(SIGSEGV);
+		}
+		return 0;
 	}
-	return 0;
+	catch (std::exception const& e)
+	{
+		fprintf(stderr, "exited with exception: %s\n", e.what());
+		return 1;
+	}
 }
-catch (std::exception const& e)
-{
-	fprintf(stderr, "exited with exception: %s\n", e.what());
-	return 1;
-}
-

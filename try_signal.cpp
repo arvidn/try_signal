@@ -57,7 +57,8 @@ try_signal::try_signal()
 	jmpbuf = &buf;
 	if (sig != 0)
 	{
-		fprintf(stderr, "sigsetjmp() returned %d\nthrowing exception\n", sig);
+		fprintf(stderr, "sigsetjmp() returned %d\nclearing jmpbuf\nthrowing exception\n", sig);
+		jmpbuf = nullptr;
 		throw std::system_error(static_cast<sig::errors::error_code_enum>(sig));
 	}
 	fprintf(stderr, "sigsetjmp() returned %d\nresuming\n", sig);
