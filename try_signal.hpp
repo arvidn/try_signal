@@ -33,26 +33,51 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifndef TRY_SIGNAL_HPP_INCLUDED
 #define TRY_SIGNAL_HPP_INCLUDED
 
+#include <mutex> // for call_once
 #include <setjmp.h>
 #include <signal.h>
 
+#include "signal_error_code.hpp"
+
 namespace sig {
 
-struct try_signal
-{
-	try_signal();
-	~try_signal();
+	namespace detail {
+		extern thread_local sigjmp_buf* volatile jmpbuf;
+		extern std::once_flag once;
 
-	try_signal(try_signal const&) = delete;
-	try_signal& operator=(try_signal const&) = delete;
-private:
+		struct scoped_jmpbuf
+		{
+			scoped_jmpbuf(sigjmp_buf* ptr)
+			{
+				_previous_ptr = sig::detail::jmpbuf;
+				sig::detail::jmpbuf = ptr;
+			}
+			~scoped_jmpbuf() { sig::detail::jmpbuf = _previous_ptr; }
+			scoped_jmpbuf(scoped_jmpbuf const&) = delete;
+			scoped_jmpbuf& operator=(scoped_jmpbuf const&) = delete;
+		private:
+			sigjmp_buf* _previous_ptr;
+		};
 
-	thread_local static sigjmp_buf* volatile jmpbuf;
+		void handler(int signo, siginfo_t* si, void* ctx);
+		void setup_handler();
+	} // namespace detail
 
-	static void handler(int signo, siginfo_t* si, void* ctx);
+	template <typename F, typename... Args>
+	auto try_signal(F&& f, Args... args) -> decltype(f(args...))
+	{
+		std::call_once(detail::once, detail::setup_handler);
 
-	sigjmp_buf buf;
-};
+		sigjmp_buf buf;
+		int const sig = sigsetjmp(buf, 1);
+		// set the thread local jmpbuf pointer, and make sure it's cleared when we
+		// leave the scope
+		detail::scoped_jmpbuf scope(&buf);
+		if (sig != 0)
+			throw std::system_error(static_cast<sig::errors::error_code_enum>(sig));
+
+		return f(args...);
+	}
 
 } // namespace sig
 

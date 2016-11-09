@@ -13,11 +13,10 @@ struct A
 int main() try
 {
 	A a1("a1");
-	{
-		try_signal _try;
+	try_signal([] {
 		A a2("a2");
 		raise(SIGSEGV);
-	}
+	});
 	return 0;
 }
 catch (std::exception const& e)

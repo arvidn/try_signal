@@ -32,7 +32,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <cassert>
 #include <system_error>
-#include "signal_error_code.hpp"
 
 #include <signal.h>
 #include <setjmp.h>
@@ -40,38 +39,12 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "try_signal.hpp"
 
 namespace sig {
+namespace detail {
 
-try_signal::try_signal()
-{
-	// try_signal cannot be nested
-	assert(jmpbuf == nullptr);
-
-	struct sigaction sa;
-	sa.sa_sigaction = &try_signal::handler;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_SIGINFO;
-	sigaction(SIGSEGV, &sa, nullptr);
-	sigaction(SIGBUS, &sa, nullptr);
-
-	int const sig = sigsetjmp(buf, 1);
-	jmpbuf = &buf;
-	if (sig != 0)
-	{
-		throw std::system_error(static_cast<sig::errors::error_code_enum>(sig));
-	}
-}
-
-try_signal::~try_signal()
-{
-	jmpbuf = nullptr;
-}
-
-void try_signal::handler(int const signo, siginfo_t* si, void* ctx)
+void handler(int const signo, siginfo_t* si, void* ctx)
 {
 	if (jmpbuf)
-	{
 		siglongjmp(*jmpbuf, signo);
-	}
 
 	// this signal was not caused within the scope of a try_signal object,
 	// invoke the default handler
@@ -79,7 +52,19 @@ void try_signal::handler(int const signo, siginfo_t* si, void* ctx)
 	raise(signo);
 }
 
-thread_local sigjmp_buf* volatile try_signal::jmpbuf = nullptr;
+void setup_handler()
+{
+	struct sigaction sa;
+	sa.sa_sigaction = &detail::handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_SIGINFO;
+	sigaction(SIGSEGV, &sa, nullptr);
+	sigaction(SIGBUS, &sa, nullptr);
+}
 
+thread_local sigjmp_buf* volatile jmpbuf = nullptr;
+std::once_flag once;
+
+} // namespace detail
 } // namespace sig
 
