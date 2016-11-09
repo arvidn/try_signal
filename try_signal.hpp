@@ -73,6 +73,7 @@ namespace sig {
 		// set the thread local jmpbuf pointer, and make sure it's cleared when we
 		// leave the scope
 		detail::scoped_jmpbuf scope(&buf);
+		fprintf(stderr, "sigsetjmp() = %d\n", sig);
 		if (sig != 0)
 			throw std::system_error(static_cast<sig::errors::error_code_enum>(sig));
 

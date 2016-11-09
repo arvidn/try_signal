@@ -15,13 +15,14 @@ int main() try
 	A a1("a1");
 	try_signal([] {
 		A a2("a2");
+		fprintf(stderr, "raise SIGSEGV\n");
 		raise(SIGSEGV);
 	});
 	return 0;
 }
 catch (std::exception const& e)
 {
-	fprintf(stderr, "Failed with exception: %s\n", e.what());
+	fprintf(stderr, "exited with exception: %s\n", e.what());
 	return 1;
 }
 

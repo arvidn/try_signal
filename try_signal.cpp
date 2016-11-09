@@ -43,6 +43,7 @@ namespace detail {
 
 void handler(int const signo, siginfo_t* si, void* ctx)
 {
+	fprintf(stderr, "handler(%d)\n", signo);
 	if (jmpbuf)
 		siglongjmp(*jmpbuf, signo);
 
