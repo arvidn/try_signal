@@ -22,7 +22,7 @@ int main() try
 }
 catch (std::exception const& e)
 {
-	fprintf(stderr, "Failed with exception: %s\n", e.what());
+	fprintf(stderr, "exited with exception: %s\n", e.what());
 	return 1;
 }
 

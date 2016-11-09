@@ -57,24 +57,30 @@ try_signal::try_signal()
 	jmpbuf = &buf;
 	if (sig != 0)
 	{
+		fprintf(stderr, "sigsetjmp() returned %d\nthrowing exception\n", sig);
 		throw std::system_error(static_cast<sig::errors::error_code_enum>(sig));
 	}
+	fprintf(stderr, "sigsetjmp() returned %d\nresuming\n", sig);
 }
 
 try_signal::~try_signal()
 {
+	fprintf(stderr, "~try_signal() clearing jmpbuf pointer\n");
 	jmpbuf = nullptr;
 }
 
 void try_signal::handler(int const signo, siginfo_t* si, void* ctx)
 {
+	fprintf(stderr, "try_signal::handler(%d)\n", signo);
 	if (jmpbuf)
 	{
+		fprintf(stderr, "siglongjmp(%d)\n", signo);
 		siglongjmp(*jmpbuf, signo);
 	}
 
 	// this signal was not caused within the scope of a try_signal object,
 	// invoke the default handler
+	fprintf(stderr, "restoring default signal handler and re-raising\n");
 	signal(signo, SIG_DFL);
 	raise(signo);
 }
