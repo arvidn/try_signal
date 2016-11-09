@@ -53,7 +53,7 @@ try_signal::try_signal()
 	sigaction(SIGSEGV, &sa, nullptr);
 	sigaction(SIGBUS, &sa, nullptr);
 
-	int const sig = sigsetjmp(buf, 0);
+	int const sig = sigsetjmp(buf, 1);
 	jmpbuf = &buf;
 	if (sig != 0)
 	{
