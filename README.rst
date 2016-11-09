@@ -26,19 +26,15 @@ Example::
 	int main() try
 	{
 		A a1("a1");
-		{
-			// try_signal will throw if a SIGBUS or SIGSEGV is caught during
-			// its lifetime
-			try_signal _try;
-
-			A a2("a2");
+		try_signal([] {
+			A a2("a2"); // destructors mae not be called in here
 			raise(SIGSEGV);
-		}
+		});
 		return 0;
 	}
 	catch (std::exception const& e)
 	{
-		fprintf(stderr, "Failed with exception: %s\n", e.what());
+		fprintf(stderr, "exited with exception: %s\n", e.what());
 		return 1;
 	}
 
@@ -46,7 +42,6 @@ Prints::
 
 	a1
 	a2
-	~a2
 	~a1
 	Failed with exception: segmentation fault
 

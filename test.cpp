@@ -18,11 +18,16 @@ int main() try
 		fprintf(stderr, "raise SIGSEGV\n");
 		raise(SIGSEGV);
 	});
-	return 0;
+
+
+	// return non-zero here because we don't expect this
+	return 1;
 }
 catch (std::exception const& e)
 {
 	fprintf(stderr, "exited with exception: %s\n", e.what());
-	return 1;
+
+	// we expect this to happen, so return 0
+	return 0;
 }
 
