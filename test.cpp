@@ -19,15 +19,14 @@ int main() try
 		raise(SIGSEGV);
 	});
 
-
 	// return non-zero here because we don't expect this
 	return 1;
 }
-catch (std::exception const& e)
+catch (std::system_error const& e)
 {
-	fprintf(stderr, "exited with exception: %s\n", e.what());
+	fprintf(stderr, "exited with system_error exception: %s\n", e.what());
 
 	// we expect this to happen, so return 0
-	return 0;
+	return e.code() == sig::errors::segmentation ? 0 : 1;
 }
 

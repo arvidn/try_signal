@@ -40,8 +40,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "signal_error_code.hpp"
 
 namespace sig {
-
 	namespace detail {
+
 		extern thread_local sigjmp_buf* volatile jmpbuf;
 		extern std::once_flag once;
 
@@ -61,6 +61,7 @@ namespace sig {
 
 		void handler(int signo, siginfo_t* si, void* ctx);
 		void setup_handler();
+
 	} // namespace detail
 
 	template <typename F, typename... Args>
