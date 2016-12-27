@@ -32,6 +32,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <cassert>
 #include <system_error>
+#include <atomic>
 
 #include <signal.h>
 #include <setjmp.h>
