@@ -39,39 +39,47 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace sig {
 namespace errors {
 
+#ifdef _WIN32
+#define SIG_ENUM(name, sig) name,
+#else
+#define SIG_ENUM(name, sig) name = sig,
+#endif
+
 	enum error_code_enum
 	{
-		abort = SIGABRT,
-		alarm = SIGALRM,
-		floating_point_exception = SIGFPE,
-		hangup = SIGHUP,
-		illegal = SIGILL,
-		interrupt = SIGINT,
-		kill = SIGKILL,
-		pipe = SIGPIPE,
-		quite = SIGQUIT,
-		segmentation = SIGSEGV,
-		terminate = SIGTERM,
-		user1 = SIGUSR1,
-		user2 = SIGUSR2,
-		child = SIGCHLD,
-		cont = SIGCONT,
-		stop = SIGSTOP,
-		terminal_stop = SIGTSTP,
-		terminal_in = SIGTTIN,
-		terminal_out = SIGTTOU,
-		bus = SIGBUS,
+		SIG_ENUM(abort, SIGABRT)
+		SIG_ENUM(alarm, SIGALRM)
+		SIG_ENUM(arithmetic_exception, SIGFPE)
+		SIG_ENUM(hangup, SIGHUP)
+		SIG_ENUM(illegal, SIGILL)
+		SIG_ENUM(interrupt, SIGINT)
+		SIG_ENUM(kill, SIGKILL)
+		SIG_ENUM(pipe, SIGPIPE)
+		SIG_ENUM(quit, SIGQUIT)
+		SIG_ENUM(segmentation, SIGSEGV)
+		SIG_ENUM(terminate, SIGTERM)
+		SIG_ENUM(user1, SIGUSR1)
+		SIG_ENUM(user2, SIGUSR2)
+		SIG_ENUM(child, SIGCHLD)
+		SIG_ENUM(cont, SIGCONT)
+		SIG_ENUM(stop, SIGSTOP)
+		SIG_ENUM(terminal_stop, SIGTSTP)
+		SIG_ENUM(terminal_in, SIGTTIN)
+		SIG_ENUM(terminal_out, SIGTTOU)
+		SIG_ENUM(bus, SIGBUS)
 #ifdef SIGPOLL
-		poll = SIGPOLL,
+		SIG_ENUM(poll, SIGPOLL)
 #endif
-		profiler = SIGPROF,
-		system_call = SIGSYS,
-		trap = SIGTRAP,
-		urgent_data = SIGURG,
-		virtual_timer = SIGVTALRM,
-		cpu_limit = SIGXCPU,
-		file_size_limit = SIGXFSZ,
+		SIG_ENUM(profiler, SIGPROF)
+		SIG_ENUM(system_call, SIGSYS)
+		SIG_ENUM(trap, SIGTRAP)
+		SIG_ENUM(urgent_data, SIGURG)
+		SIG_ENUM(virtual_timer, SIGVTALRM)
+		SIG_ENUM(cpu_limit, SIGXCPU)
+		SIG_ENUM(file_size_limit, SIGXFSZ)
 	};
+
+#undef SIG_ENUM
 
 	std::error_code make_error_code(error_code_enum e);
 

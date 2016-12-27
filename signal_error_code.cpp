@@ -48,13 +48,13 @@ namespace {
 			{
 			SIGNAL_CASE(abort)
 			SIGNAL_CASE(alarm)
-			SIGNAL_CASE(floating_point_exception)
+			SIGNAL_CASE(arithmetic_exception)
 			SIGNAL_CASE(hangup)
 			SIGNAL_CASE(illegal)
 			SIGNAL_CASE(interrupt)
 			SIGNAL_CASE(kill)
 			SIGNAL_CASE(pipe)
-			SIGNAL_CASE(quite)
+			SIGNAL_CASE(quit)
 			case sig::errors::error_code_enum::segmentation: return "segmentation fault";
 			SIGNAL_CASE(terminate)
 			SIGNAL_CASE(user1)

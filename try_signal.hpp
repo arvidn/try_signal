@@ -39,7 +39,16 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "signal_error_code.hpp"
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <eh.h>
+#endif
+
 namespace sig {
+
+#ifndef _WIN32
+
 	namespace detail {
 
 		extern thread_local sigjmp_buf* volatile jmpbuf;
@@ -79,6 +88,36 @@ namespace sig {
 
 		return f(args...);
 	}
+
+#else
+
+	namespace detail {
+		void se_translator(unsigned int, _EXCEPTION_POINTERS* ExceptionInfo);
+
+		struct scoped_se_translator
+		{
+			scoped_se_translator()
+			{ _prev_fun = _set_se_translator(se_translator); }
+
+			~scoped_se_translator()
+			{ _set_se_translator(_prev_fun); }
+
+			scoped_se_translator(scoped_se_translator const&) = delete;
+			scoped_se_translator& operator=(scoped_se_translator const&) = delete;
+
+		private:
+			void (*_prev_fun)(unsigned int, struct _EXCEPTION_POINTERS*);
+		};
+	}
+
+	template <typename F, typename... Args>
+	auto try_signal(F&& f, Args... args) -> decltype(f(args...))
+	{
+		detail::scoped_se_translator scope;
+		return f(args...);
+	}
+
+#endif // _WIN32
 
 } // namespace sig
 
