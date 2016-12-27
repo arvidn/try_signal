@@ -27,7 +27,9 @@ Example::
 	{
 		A a1("a1");
 		try_signal([] {
-			A a2("a2"); // destructors mae not be called in here
+			A a2("a2");
+			// destructors might not be called
+			// when exiting through a signal
 			raise(SIGSEGV);
 		});
 		return 0;

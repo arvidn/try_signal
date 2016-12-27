@@ -43,7 +43,7 @@ namespace sig {
 	namespace detail {
 
 		extern thread_local sigjmp_buf* volatile jmpbuf;
-		extern std::once_flag once;
+		extern std::atomic_flag once;
 
 		struct scoped_jmpbuf
 		{
@@ -67,14 +67,13 @@ namespace sig {
 	template <typename F, typename... Args>
 	auto try_signal(F&& f, Args... args) -> decltype(f(args...))
 	{
-		std::call_once(detail::once, detail::setup_handler);
+		if (detail::once.test_and_set() == false) detail::setup_handler();
 
 		sigjmp_buf buf;
 		int const sig = sigsetjmp(buf, 1);
 		// set the thread local jmpbuf pointer, and make sure it's cleared when we
 		// leave the scope
 		detail::scoped_jmpbuf scope(&buf);
-		fprintf(stderr, "sigsetjmp() = %d\n", sig);
 		if (sig != 0)
 			throw std::system_error(static_cast<sig::errors::error_code_enum>(sig));
 

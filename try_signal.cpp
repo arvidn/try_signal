@@ -41,9 +41,8 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace sig {
 namespace detail {
 
-void handler(int const signo, siginfo_t* si, void* ctx)
+void handler(int const signo, siginfo_t* si, void*)
 {
-	fprintf(stderr, "handler(%d)\n", signo);
 	if (jmpbuf)
 		siglongjmp(*jmpbuf, signo);
 
@@ -64,7 +63,7 @@ void setup_handler()
 }
 
 thread_local sigjmp_buf* volatile jmpbuf = nullptr;
-std::once_flag once;
+std::atomic_flag once = ATOMIC_FLAG_INIT;
 
 } // namespace detail
 } // namespace sig
