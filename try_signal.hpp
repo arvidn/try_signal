@@ -33,7 +33,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifndef TRY_SIGNAL_HPP_INCLUDED
 #define TRY_SIGNAL_HPP_INCLUDED
 
-#include <mutex> // for call_once
+#include <atomic>
 #include <setjmp.h>
 #include <signal.h>
 
