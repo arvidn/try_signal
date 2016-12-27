@@ -42,6 +42,8 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace sig {
 namespace detail {
 
+#ifndef _WIN32
+
 void handler(int const signo, siginfo_t* si, void*)
 {
 	if (jmpbuf)
@@ -65,6 +67,55 @@ void setup_handler()
 
 thread_local sigjmp_buf* volatile jmpbuf = nullptr;
 std::atomic_flag once = ATOMIC_FLAG_INIT;
+
+#else
+
+namespace {
+sig::errors::error_code_enum map_exception_code(DWORD const exception_code)
+{
+	switch (exception_code)
+	{
+		case EXCEPTION_ACCESS_VIOLATION:
+		case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
+		case EXCEPTION_GUARD_PAGE:
+		case EXCEPTION_STACK_OVERFLOW:
+		case EXCEPTION_FLT_STACK_CHECK:
+		case EXCEPTION_IN_PAGE_ERROR:
+			return sig::errors::segmentation;
+		case EXCEPTION_BREAKPOINT:
+		case EXCEPTION_SINGLE_STEP:
+			return sig::errors::trap;
+		case EXCEPTION_DATATYPE_MISALIGNMENT:
+			return sig::errors::bus;
+		case EXCEPTION_FLT_DENORMAL_OPERAND:
+		case EXCEPTION_FLT_DIVIDE_BY_ZERO:
+		case EXCEPTION_FLT_INEXACT_RESULT:
+		case EXCEPTION_FLT_INVALID_OPERATION:
+		case EXCEPTION_FLT_OVERFLOW:
+		case EXCEPTION_FLT_UNDERFLOW:
+		case EXCEPTION_INT_DIVIDE_BY_ZERO:
+		case EXCEPTION_INT_OVERFLOW:
+			return sig::errors::arithmetic_exception;
+		case EXCEPTION_ILLEGAL_INSTRUCTION:
+		case EXCEPTION_INVALID_DISPOSITION:
+		case EXCEPTION_PRIV_INSTRUCTION:
+		case EXCEPTION_NONCONTINUABLE_EXCEPTION:
+		case STATUS_UNWIND_CONSOLIDATE:
+			return sig::errors::illegal;
+		case EXCEPTION_INVALID_HANDLE:
+			return sig::errors::pipe;
+		default:
+			return sig::errors::illegal;
+	}
+}
+}
+
+void se_translator(unsigned int, _EXCEPTION_POINTERS* info)
+{
+	throw std::system_error(detail::map_exception_code(info->ExceptionRecord->ExceptionCode));
+}
+
+#endif // _WIN32
 
 } // namespace detail
 } // namespace sig

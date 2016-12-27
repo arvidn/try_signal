@@ -1,8 +1,25 @@
-import package ;
+rule usage-requirements ( properties * )
+{
+	local result ;
+	if <target-os>windows in $(properties)
+	{
+		result += <asynch-exceptions>on ;
+	}
+	return $(result) ;
+}
 
-lib try_signal : signal_error_code.cpp try_signal.cpp ;
+lib try_signal
+	: # sources
+	signal_error_code.cpp try_signal.cpp
+	: # requirements
+	<conditional>@usage-requirements
+	: # default build
+	: # usage requirements
+	<conditional>@usage-requirements
+	;
 
-exe test : test.cpp : <library>try_signal ;
+exe test : test.cpp : <library>try_signal <link>static ;
+explicit test ;
 
-package.install stage_test : <location>. : test ;
+install stage_test : test : <location>. ;
 

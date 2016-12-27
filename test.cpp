@@ -16,7 +16,11 @@ int main() try
 	try_signal([] {
 		A a2("a2");
 		fprintf(stderr, "raise SIGSEGV\n");
+#ifndef _WIN32
 		raise(SIGSEGV);
+#else
+		RaiseException(EXCEPTION_IN_PAGE_ERROR, EXCEPTION_NONCONTINUABLE, 0, nullptr);
+#endif
 	});
 
 	// return non-zero here because we don't expect this

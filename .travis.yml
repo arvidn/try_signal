@@ -36,5 +36,5 @@ install:
 script:
 
   - bjam link=static stage_test
-  - ./bin/test
+  - ./test
 
