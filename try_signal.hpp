@@ -47,7 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace sig {
 
-#ifndef _WIN32
+#if !defined _WIN32 || defined __GNUC__
 
 	namespace detail {
 
