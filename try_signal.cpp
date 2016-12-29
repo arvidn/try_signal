@@ -74,7 +74,7 @@ std::atomic_flag once = ATOMIC_FLAG_INIT;
 
 #ifdef __GNUC__
 
-thread_local int exception_code = 0;
+thread_local DWORD exception_code = 0;
 
 long CALLBACK handler(EXCEPTION_POINTERS* pointers)
 {

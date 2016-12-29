@@ -101,7 +101,7 @@ namespace sig {
 	namespace detail {
 		sig::errors::error_code_enum map_exception_code(DWORD const exception_code);
 		long CALLBACK handler(EXCEPTION_POINTERS* pointers);
-		extern thread_local int exception_code;
+		extern thread_local DWORD exception_code;
 	} // namespace detail
 
 	template <typename F, typename... Args>
