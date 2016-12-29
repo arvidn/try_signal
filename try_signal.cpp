@@ -85,7 +85,6 @@ void handler(int const signo)
 void setup_handler()
 {
 	signal(SIGSEGV, &detail::handler);
-	signal(SIGBUS, &detail::handler);
 }
 
 thread_local jmp_buf* volatile jmpbuf = nullptr;

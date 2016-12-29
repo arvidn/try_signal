@@ -122,8 +122,8 @@ namespace sig {
 	{
 		if (detail::once.test_and_set() == false) detail::setup_handler();
 
-		sigjmp_buf buf;
-		int const sig = setjmp(buf, 1);
+		jmp_buf buf;
+		int const sig = setjmp(buf);
 		// set the thread local jmpbuf pointer, and make sure it's cleared when we
 		// leave the scope
 		detail::scoped_jmpbuf scope(&buf);
