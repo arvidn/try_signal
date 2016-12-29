@@ -113,7 +113,7 @@ namespace sig {
 		}
 		__except1
 		{
-			throw std::system_error(static_cast<sig::errors::error_code_enum>(exception_code));
+			throw std::system_error(map_exception_code(exception_code));
 		}
 	}
 
