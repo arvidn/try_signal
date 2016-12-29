@@ -47,7 +47,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace sig {
 
-#if !defined _WIN32 || defined __GNUC__
+#if !defined _WIN32
+	// linux
 
 	namespace detail {
 
@@ -89,7 +90,51 @@ namespace sig {
 		return f(args...);
 	}
 
+#elif defined __GNUC__
+	// mingw
+
+	namespace detail {
+
+		extern thread_local jmp_buf* volatile jmpbuf;
+		extern std::atomic_flag once;
+
+		struct scoped_jmpbuf
+		{
+			scoped_jmpbuf(jmp_buf* ptr)
+			{
+				_previous_ptr = sig::detail::jmpbuf;
+				sig::detail::jmpbuf = ptr;
+			}
+			~scoped_jmpbuf() { sig::detail::jmpbuf = _previous_ptr; }
+			scoped_jmpbuf(scoped_jmpbuf const&) = delete;
+			scoped_jmpbuf& operator=(scoped_jmpbuf const&) = delete;
+		private:
+			jmp_buf* _previous_ptr;
+		};
+
+		void handler(int signo);
+		void setup_handler();
+
+	} // namespace detail
+
+	template <typename F, typename... Args>
+	auto try_signal(F&& f, Args... args) -> decltype(f(args...))
+	{
+		if (detail::once.test_and_set() == false) detail::setup_handler();
+
+		sigjmp_buf buf;
+		int const sig = setjmp(buf, 1);
+		// set the thread local jmpbuf pointer, and make sure it's cleared when we
+		// leave the scope
+		detail::scoped_jmpbuf scope(&buf);
+		if (sig != 0)
+			throw std::system_error(static_cast<sig::errors::error_code_enum>(sig));
+
+		return f(args...);
+	}
+
 #else
+	// windows
 
 	namespace detail {
 		void se_translator(unsigned int, _EXCEPTION_POINTERS* ExceptionInfo);

@@ -42,7 +42,8 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace sig {
 namespace detail {
 
-#ifndef _WIN32
+#if !defined _WIN32
+// linux
 
 void handler(int const signo, siginfo_t* si, void*)
 {
@@ -68,7 +69,30 @@ void setup_handler()
 thread_local sigjmp_buf* volatile jmpbuf = nullptr;
 std::atomic_flag once = ATOMIC_FLAG_INIT;
 
+#elif defined __GNUC__
+// mingw
+
+void handler(int const signo)
+{
+	if (jmpbuf) longjmp(*jmpbuf, signo);
+
+	// this signal was not caused within the scope of a try_signal object,
+	// invoke the default handler
+	signal(signo, SIG_DFL);
+	raise(signo);
+}
+
+void setup_handler()
+{
+	signal(SIGSEGV, &detail::handler);
+	signal(SIGBUS, &detail::handler);
+}
+
+thread_local jmp_buf* volatile jmpbuf = nullptr;
+std::atomic_flag once = ATOMIC_FLAG_INIT;
+
 #else
+// windows
 
 namespace {
 sig::errors::error_code_enum map_exception_code(DWORD const exception_code)
