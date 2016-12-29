@@ -107,13 +107,13 @@ namespace sig {
 	template <typename F, typename... Args>
 	auto try_signal(F&& f, Args... args) -> decltype(f(args...))
 	{
-		__try1 (handler)
+		__try1 (detail::handler)
 		{
 			return f(args...);
 		}
 		__except1
 		{
-			throw std::system_error(static_cast<sig::errors::error_code_enum>(sexception_code));
+			throw std::system_error(static_cast<sig::errors::error_code_enum>(exception_code));
 		}
 	}
 
