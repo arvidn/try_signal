@@ -113,7 +113,7 @@ namespace sig {
 		}
 		__except1
 		{
-			throw std::system_error(detail::map_exception_code(exception_code));
+			throw std::system_error(detail::map_exception_code(detail::exception_code));
 		}
 	}
 
