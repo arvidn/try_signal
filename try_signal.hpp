@@ -42,7 +42,12 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
+#ifdef __GNUC__
+#include <excpt.h>
+#else
 #include <eh.h>
+#endif
 #endif
 
 namespace sig {
@@ -94,43 +99,22 @@ namespace sig {
 	// mingw
 
 	namespace detail {
-
-		extern thread_local jmp_buf* volatile jmpbuf;
-		extern std::atomic_flag once;
-
-		struct scoped_jmpbuf
-		{
-			scoped_jmpbuf(jmp_buf* ptr)
-			{
-				_previous_ptr = sig::detail::jmpbuf;
-				sig::detail::jmpbuf = ptr;
-			}
-			~scoped_jmpbuf() { sig::detail::jmpbuf = _previous_ptr; }
-			scoped_jmpbuf(scoped_jmpbuf const&) = delete;
-			scoped_jmpbuf& operator=(scoped_jmpbuf const&) = delete;
-		private:
-			jmp_buf* _previous_ptr;
-		};
-
-		void handler(int signo);
-		void setup_handler();
-
+		sig::errors::error_code_enum map_exception_code(DWORD const exception_code);
+		long CALLBACK handler(EXCEPTION_POINTERS* pointers);
+		extern thread_local int exception_code;
 	} // namespace detail
 
 	template <typename F, typename... Args>
 	auto try_signal(F&& f, Args... args) -> decltype(f(args...))
 	{
-		if (detail::once.test_and_set() == false) detail::setup_handler();
-
-		jmp_buf buf;
-		int const sig = setjmp(buf);
-		// set the thread local jmpbuf pointer, and make sure it's cleared when we
-		// leave the scope
-		detail::scoped_jmpbuf scope(&buf);
-		if (sig != 0)
-			throw std::system_error(static_cast<sig::errors::error_code_enum>(sig));
-
-		return f(args...);
+		__try1 (handler)
+		{
+			return f(args...);
+		}
+		__except1
+		{
+			throw std::system_error(static_cast<sig::errors::error_code_enum>(sexception_code));
+		}
 	}
 
 #else

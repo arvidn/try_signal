@@ -69,31 +69,20 @@ void setup_handler()
 thread_local sigjmp_buf* volatile jmpbuf = nullptr;
 std::atomic_flag once = ATOMIC_FLAG_INIT;
 
-#elif defined __GNUC__
-// mingw
-
-void handler(int const signo)
-{
-	if (jmpbuf) longjmp(*jmpbuf, signo);
-
-	// this signal was not caused within the scope of a try_signal object,
-	// invoke the default handler
-	signal(signo, SIG_DFL);
-	raise(signo);
-}
-
-void setup_handler()
-{
-	signal(SIGSEGV, &detail::handler);
-}
-
-thread_local jmp_buf* volatile jmpbuf = nullptr;
-std::atomic_flag once = ATOMIC_FLAG_INIT;
-
 #else
-// windows
+// windows and mingw
 
-namespace {
+#ifdef __GNUC__
+
+thread_local int exception_code = 0;
+
+long CALLBACK handler(EXCEPTION_POINTERS* pointers)
+{
+	exception_code = pointers->ExceptionRecord->ExceptionCode;
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
+
 sig::errors::error_code_enum map_exception_code(DWORD const exception_code)
 {
 	switch (exception_code)
@@ -131,12 +120,13 @@ sig::errors::error_code_enum map_exception_code(DWORD const exception_code)
 			return sig::errors::illegal;
 	}
 }
-}
 
+#if !defined __GNUC__
 void se_translator(unsigned int, _EXCEPTION_POINTERS* info)
 {
 	throw std::system_error(detail::map_exception_code(info->ExceptionRecord->ExceptionCode));
 }
+#endif
 
 #endif // _WIN32
 
