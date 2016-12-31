@@ -101,20 +101,41 @@ namespace sig {
 	namespace detail {
 		sig::errors::error_code_enum map_exception_code(DWORD const exception_code);
 		long CALLBACK handler(EXCEPTION_POINTERS* pointers);
-		extern thread_local DWORD exception_code;
+		extern thread_local sigjmp_buf* volatile jmpbuf;
+
+		struct scoped_handler
+		{
+			scoped_handler(jmp_buf* ptr)
+			{
+				_previous_ptr = sig::detail::jmpbuf;
+				sig::detail::jmpbuf = ptr;
+				_handle = AddVectoredExceptionHandler(1, detail::handler);
+			}
+			~scoped_handler()
+			{
+				RemoveVectoredExceptionHandler(_handle);
+				sig::detail::jmpbuf = _previous_ptr;
+			}
+			scoped_handler(scoped_handler const&) = delete;
+			scoped_handler& operator=(scoped_handler const&) = delete;
+		private:
+			void* _handle;
+			jmp_buf* _previous_ptr;
+		};
 	} // namespace detail
 
 	template <typename F, typename... Args>
 	auto try_signal(F&& f, Args... args) -> decltype(f(args...))
 	{
-		__try1 (detail::handler)
-		{
-			return f(args...);
-		}
-		__except1
-		{
-			throw std::system_error(detail::map_exception_code(detail::exception_code));
-		}
+		jmp_buf buf;
+		int const code = setjmp(buf, 1);
+		// set the thread local jmpbuf pointer, and make sure it's cleared when we
+		// leave the scope
+		detail::scoped_handler scope(&buf);
+		if (code != 0)
+			throw std::system_error(detail::map_exception_code(code));
+
+		return f(args...);
 	}
 
 #else

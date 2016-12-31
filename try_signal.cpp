@@ -69,20 +69,28 @@ void setup_handler()
 thread_local sigjmp_buf* volatile jmpbuf = nullptr;
 std::atomic_flag once = ATOMIC_FLAG_INIT;
 
-#else
-// windows and mingw
+#elif __GNUC__
+// mingw
 
-#ifdef __GNUC__
-
-thread_local DWORD exception_code = 0;
+thread_local sigjmp_buf* volatile jmpbuf = nullptr;
 
 long CALLBACK handler(EXCEPTION_POINTERS* pointers)
 {
-	exception_code = pointers->ExceptionRecord->ExceptionCode;
-	return EXCEPTION_EXECUTE_HANDLER;
+	if (jmpbuf)
+		longjmp(*jmpbuf, signo);
+	return EXCEPTION_CONTINUE_SEARCH;
 }
-#endif
+#else
+// windows
 
+void se_translator(unsigned int, _EXCEPTION_POINTERS* info)
+{
+	throw std::system_error(detail::map_exception_code(info->ExceptionRecord->ExceptionCode));
+}
+
+#endif // _WIN32
+
+#if defined _WIN32
 sig::errors::error_code_enum map_exception_code(DWORD const exception_code)
 {
 	switch (exception_code)
@@ -121,14 +129,7 @@ sig::errors::error_code_enum map_exception_code(DWORD const exception_code)
 	}
 }
 
-#if !defined __GNUC__
-void se_translator(unsigned int, _EXCEPTION_POINTERS* info)
-{
-	throw std::system_error(detail::map_exception_code(info->ExceptionRecord->ExceptionCode));
-}
 #endif
-
-#endif // _WIN32
 
 } // namespace detail
 } // namespace sig
