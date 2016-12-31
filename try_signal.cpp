@@ -83,6 +83,8 @@ long CALLBACK handler(EXCEPTION_POINTERS* pointers)
 #else
 // windows
 
+sig::errors::error_code_enum map_exception_code(DWORD);
+
 void se_translator(unsigned int, _EXCEPTION_POINTERS* info)
 {
 	throw std::system_error(detail::map_exception_code(info->ExceptionRecord->ExceptionCode));
