@@ -128,7 +128,7 @@ namespace sig {
 	auto try_signal(F&& f, Args... args) -> decltype(f(args...))
 	{
 		jmp_buf buf;
-		int const code = setjmp(buf, 1);
+		int const code = setjmp(buf);
 		// set the thread local jmpbuf pointer, and make sure it's cleared when we
 		// leave the scope
 		detail::scoped_handler scope(&buf);
