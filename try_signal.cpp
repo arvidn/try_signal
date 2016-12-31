@@ -72,7 +72,7 @@ std::atomic_flag once = ATOMIC_FLAG_INIT;
 #elif __GNUC__
 // mingw
 
-thread_local sigjmp_buf* volatile jmpbuf = nullptr;
+thread_local jmp_buf* volatile jmpbuf = nullptr;
 
 long CALLBACK handler(EXCEPTION_POINTERS* pointers)
 {

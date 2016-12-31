@@ -101,7 +101,7 @@ namespace sig {
 	namespace detail {
 		sig::errors::error_code_enum map_exception_code(DWORD const exception_code);
 		long CALLBACK handler(EXCEPTION_POINTERS* pointers);
-		extern thread_local sigjmp_buf* volatile jmpbuf;
+		extern thread_local jmp_buf* volatile jmpbuf;
 
 		struct scoped_handler
 		{
