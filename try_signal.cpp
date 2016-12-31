@@ -77,7 +77,7 @@ thread_local jmp_buf* volatile jmpbuf = nullptr;
 long CALLBACK handler(EXCEPTION_POINTERS* pointers)
 {
 	if (jmpbuf)
-		longjmp(*jmpbuf, pointers->ExceptionRecord.ExceptionCode);
+		longjmp(*jmpbuf, pointers->ExceptionRecord->ExceptionCode);
 	return EXCEPTION_CONTINUE_SEARCH;
 }
 #else
