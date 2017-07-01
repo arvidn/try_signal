@@ -16,6 +16,7 @@ lib try_signal
 	: # default build
 	: # usage requirements
 	<conditional>@usage-requirements
+	<include>.
 	;
 
 exe test : test.cpp : <library>try_signal <link>static ;
