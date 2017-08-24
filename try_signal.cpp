@@ -80,17 +80,8 @@ long CALLBACK handler(EXCEPTION_POINTERS* pointers)
 		longjmp(*jmpbuf, pointers->ExceptionRecord->ExceptionCode);
 	return EXCEPTION_CONTINUE_SEARCH;
 }
-#else
-// windows
 
-sig::errors::error_code_enum map_exception_code(DWORD);
-
-void se_translator(unsigned int, _EXCEPTION_POINTERS* info)
-{
-	throw std::system_error(detail::map_exception_code(info->ExceptionRecord->ExceptionCode));
-}
-
-#endif // _WIN32
+#endif
 
 #if defined _WIN32
 sig::errors::error_code_enum map_exception_code(DWORD const exception_code)
