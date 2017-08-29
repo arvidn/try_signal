@@ -142,31 +142,23 @@ namespace sig {
 
 #else
 	// windows
-
 	namespace detail {
-		void se_translator(unsigned int, _EXCEPTION_POINTERS* ExceptionInfo);
-
-		struct scoped_se_translator
-		{
-			scoped_se_translator()
-			{ _prev_fun = _set_se_translator(se_translator); }
-
-			~scoped_se_translator()
-			{ _set_se_translator(_prev_fun); }
-
-			scoped_se_translator(scoped_se_translator const&) = delete;
-			scoped_se_translator& operator=(scoped_se_translator const&) = delete;
-
-		private:
-			void (*_prev_fun)(unsigned int, struct _EXCEPTION_POINTERS*);
-		};
+		sig::errors::error_code_enum map_exception_code(DWORD);
 	}
 
 	template <typename F, typename... Args>
 	auto try_signal(F&& f, Args... args) -> decltype(f(args...))
 	{
-		detail::scoped_se_translator scope;
-		return f(args...);
+		__try
+		{
+			return f(args...);
+		}
+		// 0xe04d5343 is 'MSC', the code used for all C++ exceptions
+		__except (GetExceptionCode() == 0xe04d5343 ? EXCEPTION_CONTINUE_SEARCH
+			: EXCEPTION_EXECUTE_HANDLER)
+		{
+			throw std::system_error(detail::map_exception_code(GetExceptionCode()));
+		}
 	}
 
 #endif // _WIN32
