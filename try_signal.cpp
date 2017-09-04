@@ -219,38 +219,15 @@ void copy(iovec const* iov, std::size_t num_vecs)
 #else
 // windows
 
-namespace {
-
-sig::errors::error_code_enum map_exception_code(DWORD);
-
-void se_translator(unsigned int, _EXCEPTION_POINTERS* info)
-{
-	throw std::system_error(sig::map_exception_code(info->ExceptionRecord->ExceptionCode));
-}
-
-struct scoped_se_translator
-{
-	scoped_se_translator()
-	{ _prev_fun = _set_se_translator(se_translator); }
-
-	~scoped_se_translator()
-	{ _set_se_translator(_prev_fun); }
-
-	scoped_se_translator(scoped_se_translator const&) = delete;
-	scoped_se_translator& operator=(scoped_se_translator const&) = delete;
-
-private:
-	void (*_prev_fun)(unsigned int, struct _EXCEPTION_POINTERS*);
-};
-
-} // anonymous namespace
-
 void copy(iovec const* iov, std::size_t num_vecs)
 {
-	scoped_se_translator scope;
-
-	for (iovec const* end = iov + num_vecs; iov != end; ++iov)
-		std::memcpy(iov->dest, iov->src, iov->length);
+	__try {
+		for (iovec const* end = iov + num_vecs; iov != end; ++iov)
+			std::memcpy(iov->dest, iov->src, iov->length);
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) {
+		throw std::system_error(sig::map_exception_code(GetExceptionCode()));
+	}
 }
 
 #endif // _WIN32

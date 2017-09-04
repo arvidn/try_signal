@@ -1,21 +1,10 @@
-rule usage-requirements ( properties * )
-{
-	local result ;
-	if <target-os>windows in $(properties)
-	{
-		result += <asynch-exceptions>on ;
-	}
-	return $(result) ;
-}
-
 lib try_signal
 	: # sources
 	signal_error_code.cpp try_signal.cpp
 	: # requirements
-	<conditional>@usage-requirements
 	: # default build
+	<link>static
 	: # usage requirements
-	<conditional>@usage-requirements
 	<include>.
 	;
 
