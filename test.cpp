@@ -1,27 +1,16 @@
 #include <stdexcept>
+#include <array>
+
 #include "try_signal.hpp"
-
-using sig::try_signal;
-
-struct A
-{
-	A(char const* name) : _name(name) { fprintf(stderr, "%s\n", _name); }
-	~A() { fprintf(stderr, "~%s\n", _name); }
-	char const* _name;
-};
 
 int main() try
 {
-	A a1("a1");
-	try_signal([] {
-		A a2("a2");
-		fprintf(stderr, "raise SIGSEGV\n");
-#ifndef _WIN32
-		raise(SIGSEGV);
-#else
-		RaiseException(EXCEPTION_IN_PAGE_ERROR, EXCEPTION_NONCONTINUABLE, 0, nullptr);
-#endif
-	});
+	char const buf[] = "test...test";
+	char dest[sizeof(buf)];
+
+	std::array<sig::iovec, 2> iov{{{buf, dest, sizeof(buf)}
+		, {nullptr, dest, 1}}};
+	sig::copy(iov.data(), 2);
 
 	// return non-zero here because we don't expect this
 	return 1;

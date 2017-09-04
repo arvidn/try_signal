@@ -7,28 +7,19 @@ try_signal
 .. image:: https://ci.appveyor.com/api/projects/status/le8jjroaai8081f1?svg=true
 	:target: https://ci.appveyor.com/project/arvidn/try-signal/branch/master
 
-``try_signal`` is a simple abstraction to *locally* handle signals and turning
-them into C++ exceptions. This is especially useful when performing disk I/O via
-memory mapped files, where I/O errors are reported as ``SIGBUS`` and
-``SIGSEGV``.
+The ``try_signal`` library provide a simple abstraction over ``memcpy()`` that
+reports errors as C++ exceptions. This is especially useful when performing disk
+I/O via memory mapped files, where I/O errors are reported as ``SIGBUS`` and
+``SIGSEGV`` or as structured exceptions on windows.
 
 Example::
 
 	#include <stdexcept>
 	#include "try_signal.hpp"
 
-	using sig::try_signal;
-
-	struct A
-	{
-		A(char const* name) : _name(name) { fprintf(stderr, "%s\n", _name); }
-		~A() { fprintf(stderr, "~%s\n", _name); }
-		char const* _name;
-	};
-
 	int main() try
 	{
-		A a1("a1");
+		
 		try_signal([] {
 			A a2("a2");
 			// destructors might not be called
