@@ -36,6 +36,19 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <signal.h>
 #include <system_error>
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+
+#ifdef __GNUC__
+#include <excpt.h>
+#else
+#include <eh.h>
+#endif
+#endif
+
 namespace sig {
 namespace errors {
 
@@ -82,18 +95,62 @@ namespace errors {
 #undef SIG_ENUM
 
 	std::error_code make_error_code(error_code_enum e);
+	std::error_condition make_error_condition(error_code_enum e);
 
 } // namespace errors
 
 std::error_category& sig_category();
+
+#ifdef _WIN32
+namespace seh_errors {
+
+	enum error_code_enum
+	{
+		access_violation = EXCEPTION_ACCESS_VIOLATION,
+		array_bounds_exceeded = EXCEPTION_ARRAY_BOUNDS_EXCEEDED,
+		guard_page = EXCEPTION_GUARD_PAGE,
+		stack_overflow = EXCEPTION_STACK_OVERFLOW,
+		flt_stack_check = EXCEPTION_FLT_STACK_CHECK,
+		in_page_error = EXCEPTION_IN_PAGE_ERROR,
+		breakpoint = EXCEPTION_BREAKPOINT,
+		single_step = EXCEPTION_SINGLE_STEP,
+		datatype_misalignment = EXCEPTION_DATATYPE_MISALIGNMENT,
+		flt_denormal_operand = EXCEPTION_FLT_DENORMAL_OPERAND,
+		flt_divide_by_zero = EXCEPTION_FLT_DIVIDE_BY_ZERO,
+		flt_inexact_result = EXCEPTION_FLT_INEXACT_RESULT,
+		flt_invalid_operation = EXCEPTION_FLT_INVALID_OPERATION,
+		flt_overflow = EXCEPTION_FLT_OVERFLOW,
+		flt_underflow = EXCEPTION_FLT_UNDERFLOW,
+		int_divide_by_zero = EXCEPTION_INT_DIVIDE_BY_ZERO,
+		int_overflow = EXCEPTION_INT_OVERFLOW,
+		illegal_instruction = EXCEPTION_ILLEGAL_INSTRUCTION,
+		invalid_disposition = EXCEPTION_INVALID_DISPOSITION,
+		priv_instruction = EXCEPTION_PRIV_INSTRUCTION,
+		noncontinuable_exception = EXCEPTION_NONCONTINUABLE_EXCEPTION,
+		status_unwind_consolidate = STATUS_UNWIND_CONSOLIDATE,
+		invalid_handle = EXCEPTION_INVALID_HANDLE,
+	};
+}
+
+std::error_category& seh_category();
+
+#endif // _WIN32
 
 } // namespace sig
 
 namespace std
 {
 template<>
-struct is_error_code_enum<sig::errors::error_code_enum>
-	: std::integral_constant<bool, true> {};
+struct is_error_code_enum<sig::errors::error_code_enum> : std::true_type {};
+
+template<>
+struct is_error_condition_enum<sig::errors::error_code_enum> : std::true_type {};
+
+#ifdef _WIN32
+template<>
+struct is_error_code_enum<sig::seh_errors::error_code_enum> : std::true_type {};
+#endif
+
 } // namespace std
 
 #endif
