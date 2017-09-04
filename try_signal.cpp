@@ -33,66 +33,35 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <cassert>
 #include <system_error>
 #include <atomic>
+#include <cstring> // for memcpy
 
 #include <signal.h>
 #include <setjmp.h>
 
+#include <setjmp.h>
+#include <signal.h>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+
+#ifdef __GNUC__
+#include <excpt.h>
+#else
+#include <eh.h>
+#endif
+#endif
+
 #include "try_signal.hpp"
 
 namespace sig {
-namespace detail {
 
-#if !defined _WIN32
-// linux
-
-void handler(int const signo, siginfo_t* si, void*)
-{
-	if (jmpbuf)
-		siglongjmp(*jmpbuf, signo);
-
-	// this signal was not caused within the scope of a try_signal object,
-	// invoke the default handler
-	signal(signo, SIG_DFL);
-	raise(signo);
-}
-
-void setup_handler()
-{
-	struct sigaction sa;
-	sa.sa_sigaction = &detail::handler;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_SIGINFO;
-	sigaction(SIGSEGV, &sa, nullptr);
-	sigaction(SIGBUS, &sa, nullptr);
-}
-
-thread_local sigjmp_buf* volatile jmpbuf = nullptr;
-std::atomic_flag once = ATOMIC_FLAG_INIT;
-
-#elif __GNUC__
-// mingw
-
-thread_local jmp_buf* volatile jmpbuf = nullptr;
-
-long CALLBACK handler(EXCEPTION_POINTERS* pointers)
-{
-	if (jmpbuf)
-		longjmp(*jmpbuf, pointers->ExceptionRecord->ExceptionCode);
-	return EXCEPTION_CONTINUE_SEARCH;
-}
-#else
-// windows
-
-sig::errors::error_code_enum map_exception_code(DWORD);
-
-void se_translator(unsigned int, _EXCEPTION_POINTERS* info)
-{
-	throw std::system_error(detail::map_exception_code(info->ExceptionRecord->ExceptionCode));
-}
-
-#endif // _WIN32
 
 #if defined _WIN32
+namespace {
+
 sig::errors::error_code_enum map_exception_code(DWORD const exception_code)
 {
 	switch (exception_code)
@@ -131,8 +100,160 @@ sig::errors::error_code_enum map_exception_code(DWORD const exception_code)
 	}
 }
 
+} // anonymous namespace
+
 #endif
 
-} // namespace detail
+
+#if !defined _WIN32
+// linux
+
+namespace {
+
+thread_local sigjmp_buf* volatile jmpbuf = nullptr;
+std::atomic_flag once = ATOMIC_FLAG_INIT;
+
+struct scoped_jmpbuf
+{
+	scoped_jmpbuf(sigjmp_buf* ptr)
+	{
+		_previous_ptr = sig::jmpbuf;
+		sig::jmpbuf = ptr;
+	}
+	~scoped_jmpbuf() { sig::jmpbuf = _previous_ptr; }
+	scoped_jmpbuf(scoped_jmpbuf const&) = delete;
+	scoped_jmpbuf& operator=(scoped_jmpbuf const&) = delete;
+private:
+	sigjmp_buf* _previous_ptr;
+};
+
+void handler(int const signo, siginfo_t* si, void*)
+{
+	if (jmpbuf)
+		siglongjmp(*jmpbuf, signo);
+
+	// this signal was not caused within the scope of a try_signal object,
+	// invoke the default handler
+	signal(signo, SIG_DFL);
+	raise(signo);
+}
+
+void setup_handler()
+{
+	struct sigaction sa;
+	sa.sa_sigaction = &sig::handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_SIGINFO;
+	sigaction(SIGSEGV, &sa, nullptr);
+	sigaction(SIGBUS, &sa, nullptr);
+}
+
+} // anonymous namespace
+
+void copy(iovec const* iov, std::size_t num_vecs)
+{
+	if (sig::once.test_and_set() == false) sig::setup_handler();
+
+	sigjmp_buf buf;
+	int const sig = sigsetjmp(buf, 1);
+	// set the thread local jmpbuf pointer, and make sure it's cleared when we
+	// leave the scope
+	sig::scoped_jmpbuf scope(&buf);
+	if (sig != 0)
+		throw std::system_error(static_cast<sig::errors::error_code_enum>(sig));
+
+	for (iovec const* end = iov + num_vecs; iov != end; ++iov)
+		std::memcpy(iov->dest, iov->src, iov->length);
+}
+
+#elif __GNUC__
+// mingw
+
+namespace {
+
+thread_local jmp_buf* volatile jmpbuf = nullptr;
+
+long CALLBACK handler(EXCEPTION_POINTERS* pointers)
+{
+	if (jmpbuf)
+		longjmp(*jmpbuf, pointers->ExceptionRecord->ExceptionCode);
+	return EXCEPTION_CONTINUE_SEARCH;
+}
+
+struct scoped_handler
+{
+	scoped_handler(jmp_buf* ptr)
+	{
+		_previous_ptr = sig::jmpbuf;
+		sig::jmpbuf = ptr;
+		_handle = AddVectoredExceptionHandler(1, sig::handler);
+	}
+	~scoped_handler()
+	{
+		RemoveVectoredExceptionHandler(_handle);
+		sig::jmpbuf = _previous_ptr;
+	}
+	scoped_handler(scoped_handler const&) = delete;
+	scoped_handler& operator=(scoped_handler const&) = delete;
+private:
+	void* _handle;
+	jmp_buf* _previous_ptr;
+};
+
+} // anonymous namespace
+
+void copy(iovec const* iov, std::size_t num_vecs)
+{
+		jmp_buf buf;
+		int const code = setjmp(buf);
+		// set the thread local jmpbuf pointer, and make sure it's cleared when we
+		// leave the scope
+		sig::scoped_handler scope(&buf);
+		if (code != 0)
+			throw std::system_error(sig::map_exception_code(code));
+
+	for (iovec const* end = iov + num_vecs; iov != end; ++iov)
+		std::memcpy(iov->dest, iov->src, iov->length);
+}
+
+#else
+// windows
+
+namespace {
+
+sig::errors::error_code_enum map_exception_code(DWORD);
+
+void se_translator(unsigned int, _EXCEPTION_POINTERS* info)
+{
+	throw std::system_error(sig::map_exception_code(info->ExceptionRecord->ExceptionCode));
+}
+
+struct scoped_se_translator
+{
+	scoped_se_translator()
+	{ _prev_fun = _set_se_translator(se_translator); }
+
+	~scoped_se_translator()
+	{ _set_se_translator(_prev_fun); }
+
+	scoped_se_translator(scoped_se_translator const&) = delete;
+	scoped_se_translator& operator=(scoped_se_translator const&) = delete;
+
+private:
+	void (*_prev_fun)(unsigned int, struct _EXCEPTION_POINTERS*);
+};
+
+} // anonymous namespace
+
+void copy(iovec const* iov, std::size_t num_vecs)
+{
+	scoped_se_translator scope;
+
+	for (iovec const* end = iov + num_vecs; iov != end; ++iov)
+		std::memcpy(iov->dest, iov->src, iov->length);
+}
+
+#endif // _WIN32
+
 } // namespace sig
 
