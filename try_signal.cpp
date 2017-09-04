@@ -58,53 +58,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace sig {
 
-
-#if defined _WIN32
-namespace {
-
-sig::errors::error_code_enum map_exception_code(DWORD const exception_code)
-{
-	switch (exception_code)
-	{
-		case EXCEPTION_ACCESS_VIOLATION:
-		case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
-		case EXCEPTION_GUARD_PAGE:
-		case EXCEPTION_STACK_OVERFLOW:
-		case EXCEPTION_FLT_STACK_CHECK:
-		case EXCEPTION_IN_PAGE_ERROR:
-			return sig::errors::segmentation;
-		case EXCEPTION_BREAKPOINT:
-		case EXCEPTION_SINGLE_STEP:
-			return sig::errors::trap;
-		case EXCEPTION_DATATYPE_MISALIGNMENT:
-			return sig::errors::bus;
-		case EXCEPTION_FLT_DENORMAL_OPERAND:
-		case EXCEPTION_FLT_DIVIDE_BY_ZERO:
-		case EXCEPTION_FLT_INEXACT_RESULT:
-		case EXCEPTION_FLT_INVALID_OPERATION:
-		case EXCEPTION_FLT_OVERFLOW:
-		case EXCEPTION_FLT_UNDERFLOW:
-		case EXCEPTION_INT_DIVIDE_BY_ZERO:
-		case EXCEPTION_INT_OVERFLOW:
-			return sig::errors::arithmetic_exception;
-		case EXCEPTION_ILLEGAL_INSTRUCTION:
-		case EXCEPTION_INVALID_DISPOSITION:
-		case EXCEPTION_PRIV_INSTRUCTION:
-		case EXCEPTION_NONCONTINUABLE_EXCEPTION:
-		case STATUS_UNWIND_CONSOLIDATE:
-			return sig::errors::illegal;
-		case EXCEPTION_INVALID_HANDLE:
-			return sig::errors::pipe;
-		default:
-			return sig::errors::illegal;
-	}
-}
-
-} // anonymous namespace
-
-#endif
-
-
 #if !defined _WIN32
 // linux
 
@@ -210,7 +163,7 @@ void copy(iovec const* iov, std::size_t num_vecs)
 		// leave the scope
 		sig::scoped_handler scope(&buf);
 		if (code != 0)
-			throw std::system_error(sig::map_exception_code(code));
+			throw std::system_error(std::error_code(code, seh_category()));
 
 	for (iovec const* end = iov + num_vecs; iov != end; ++iov)
 		std::memcpy(iov->dest, iov->src, iov->length);
@@ -219,14 +172,31 @@ void copy(iovec const* iov, std::size_t num_vecs)
 #else
 // windows
 
+namespace {
+
+	// these are the kinds of SEH exceptions we'll translate into C++ exceptions
+	bool catch_error(int const code)
+	{
+		return code == EXCEPTION_IN_PAGE_ERROR
+			|| code == EXCEPTION_ACCESS_VIOLATION
+			|| code == EXCEPTION_ARRAY_BOUNDS_EXCEEDED
+			|| code == EXCEPTION_GUARD_PAGE
+			|| code == EXCEPTION_STACK_OVERFLOW
+			|| code == EXCEPTION_FLT_STACK_CHECK
+			|| code == EXCEPTION_DATATYPE_MISALIGNMENT;
+	}
+} // anonymous namespace
+
 void copy(iovec const* iov, std::size_t num_vecs)
 {
 	__try {
 		for (iovec const* end = iov + num_vecs; iov != end; ++iov)
 			std::memcpy(iov->dest, iov->src, iov->length);
 	}
-	__except (EXCEPTION_EXECUTE_HANDLER) {
-		throw std::system_error(sig::map_exception_code(GetExceptionCode()));
+	__except (catch_error(GetExceptionCode())
+		? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+	{
+		throw std::system_error(std::error_code(GetExceptionCode(), seh_category()));
 	}
 }
 
