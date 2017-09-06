@@ -179,11 +179,7 @@ namespace {
 	{
 		return code == EXCEPTION_IN_PAGE_ERROR
 			|| code == EXCEPTION_ACCESS_VIOLATION
-			|| code == EXCEPTION_ARRAY_BOUNDS_EXCEEDED
-			|| code == EXCEPTION_GUARD_PAGE
-			|| code == EXCEPTION_STACK_OVERFLOW
-			|| code == EXCEPTION_FLT_STACK_CHECK
-			|| code == EXCEPTION_DATATYPE_MISALIGNMENT;
+			|| code == EXCEPTION_ARRAY_BOUNDS_EXCEEDED;
 	}
 } // anonymous namespace
 
