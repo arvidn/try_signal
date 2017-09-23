@@ -33,52 +33,31 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <cassert>
 #include <system_error>
 #include <atomic>
-#include <cstring> // for memcpy
 
 #include <signal.h>
 #include <setjmp.h>
 
 #include <setjmp.h>
 #include <signal.h>
-
-#ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-
-#ifdef __GNUC__
-#include <excpt.h>
-#else
-#include <eh.h>
-#endif
-#endif
 
 #include "try_signal.hpp"
-
-namespace sig {
 
 #if !defined _WIN32
 // linux
 
-namespace {
+namespace sig {
+namespace detail {
 
 thread_local sigjmp_buf* volatile jmpbuf = nullptr;
 std::atomic_flag once = ATOMIC_FLAG_INIT;
 
-struct scoped_jmpbuf
+scoped_jmpbuf::scoped_jmpbuf(sigjmp_buf* ptr)
 {
-	scoped_jmpbuf(sigjmp_buf* ptr)
-	{
-		_previous_ptr = sig::jmpbuf;
-		sig::jmpbuf = ptr;
-	}
-	~scoped_jmpbuf() { sig::jmpbuf = _previous_ptr; }
-	scoped_jmpbuf(scoped_jmpbuf const&) = delete;
-	scoped_jmpbuf& operator=(scoped_jmpbuf const&) = delete;
-private:
-	sigjmp_buf* _previous_ptr;
-};
+	_previous_ptr = jmpbuf;
+	jmpbuf = ptr;
+}
+
+scoped_jmpbuf::~scoped_jmpbuf() { jmpbuf = _previous_ptr; }
 
 void handler(int const signo, siginfo_t* si, void*)
 {
@@ -94,35 +73,26 @@ void handler(int const signo, siginfo_t* si, void*)
 void setup_handler()
 {
 	struct sigaction sa;
-	sa.sa_sigaction = &sig::handler;
+	sa.sa_sigaction = &sig::detail::handler;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_SIGINFO;
 	sigaction(SIGSEGV, &sa, nullptr);
 	sigaction(SIGBUS, &sa, nullptr);
 }
 
-} // anonymous namespace
-
-void copy(iovec const* iov, std::size_t num_vecs)
-{
-	if (sig::once.test_and_set() == false) sig::setup_handler();
-
-	sigjmp_buf buf;
-	int const sig = sigsetjmp(buf, 1);
-	// set the thread local jmpbuf pointer, and make sure it's cleared when we
-	// leave the scope
-	sig::scoped_jmpbuf scope(&buf);
-	if (sig != 0)
-		throw std::system_error(static_cast<sig::errors::error_code_enum>(sig));
-
-	for (iovec const* end = iov + num_vecs; iov != end; ++iov)
-		std::memcpy(iov->dest, iov->src, iov->length);
-}
+} // detail namespace
+} // sig namespace
 
 #elif __GNUC__
 // mingw
 
-namespace {
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+
+namespace sig {
+namespace detail {
 
 thread_local jmp_buf* volatile jmpbuf = nullptr;
 
@@ -133,46 +103,28 @@ long CALLBACK handler(EXCEPTION_POINTERS* pointers)
 	return EXCEPTION_CONTINUE_SEARCH;
 }
 
-struct scoped_handler
+scoped_handler::scoped_handler(jmp_buf* ptr)
 {
-	scoped_handler(jmp_buf* ptr)
-	{
-		_previous_ptr = sig::jmpbuf;
-		sig::jmpbuf = ptr;
-		_handle = AddVectoredExceptionHandler(1, sig::handler);
-	}
-	~scoped_handler()
-	{
-		RemoveVectoredExceptionHandler(_handle);
-		sig::jmpbuf = _previous_ptr;
-	}
-	scoped_handler(scoped_handler const&) = delete;
-	scoped_handler& operator=(scoped_handler const&) = delete;
-private:
-	void* _handle;
-	jmp_buf* _previous_ptr;
-};
-
-} // anonymous namespace
-
-void copy(iovec const* iov, std::size_t num_vecs)
-{
-		jmp_buf buf;
-		int const code = setjmp(buf);
-		// set the thread local jmpbuf pointer, and make sure it's cleared when we
-		// leave the scope
-		sig::scoped_handler scope(&buf);
-		if (code != 0)
-			throw std::system_error(std::error_code(code, seh_category()));
-
-	for (iovec const* end = iov + num_vecs; iov != end; ++iov)
-		std::memcpy(iov->dest, iov->src, iov->length);
+	_previous_ptr = jmpbuf;
+	jmpbuf = ptr;
+	_handle = AddVectoredExceptionHandler(1, sig::detail::handler);
 }
+scoped_handler::~scoped_handler()
+{
+	RemoveVectoredExceptionHandler(_handle);
+	jmpbuf = _previous_ptr;
+}
+
+} // detail namespace
+} // sig namespace
 
 #else
 // windows
 
-namespace {
+#include <winnt.h> // for EXCEPTION_*
+
+namespace sig {
+namespace detail {
 
 	// these are the kinds of SEH exceptions we'll translate into C++ exceptions
 	bool catch_error(int const code)
@@ -181,22 +133,9 @@ namespace {
 			|| code == EXCEPTION_ACCESS_VIOLATION
 			|| code == EXCEPTION_ARRAY_BOUNDS_EXCEEDED;
 	}
-} // anonymous namespace
-
-void copy(iovec const* iov, std::size_t num_vecs)
-{
-	__try {
-		for (iovec const* end = iov + num_vecs; iov != end; ++iov)
-			std::memcpy(iov->dest, iov->src, iov->length);
-	}
-	__except (catch_error(GetExceptionCode())
-		? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
-	{
-		throw std::system_error(std::error_code(GetExceptionCode(), seh_category()));
-	}
-}
+} // detail namespace
+} // namespace sig
 
 #endif // _WIN32
 
-} // namespace sig
 

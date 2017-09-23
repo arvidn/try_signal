@@ -30,20 +30,53 @@ POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#ifndef TRY_SIGNAL_HPP_INCLUDED
-#define TRY_SIGNAL_HPP_INCLUDED
+#ifndef TRY_SIGNAL_POSIX_HPP_INCLUDED
+#define TRY_SIGNAL_POSIX_HPP_INCLUDED
 
-#if !defined _WIN32
-// linux
-#include "try_signal_posix.hpp"
-#elif __GNUC__
-// mingw
-#include "try_signal_mingw.hpp"
-#else
-// windows
-#include "try_signal_msvc.hpp"
+#include "signal_error_code.hpp"
+#include <setjmp.h> // for sigjmp_buf
+#include <atomic>
+
+namespace sig {
+
+namespace detail {
+
+extern std::atomic_flag once;
+
+struct scoped_jmpbuf
+{
+	scoped_jmpbuf(sigjmp_buf* ptr);
+	~scoped_jmpbuf();
+	scoped_jmpbuf(scoped_jmpbuf const&) = delete;
+	scoped_jmpbuf& operator=(scoped_jmpbuf const&) = delete;
+private:
+	sigjmp_buf* _previous_ptr;
+};
+
+void handler(int const signo, siginfo_t* si, void*);
+void setup_handler();
+
+} // detail namespace
+
+template <typename Fun>
+void try_signal(Fun&& f)
+{
+	if (sig::detail::once.test_and_set() == false) {
+		sig::detail::setup_handler();
+	}
+
+	sigjmp_buf buf;
+	int const sig = sigsetjmp(buf, 1);
+	// set the thread local jmpbuf pointer, and make sure it's cleared when we
+	// leave the scope
+	sig::detail::scoped_jmpbuf scope(&buf);
+	if (sig != 0)
+		throw std::system_error(static_cast<sig::errors::error_code_enum>(sig));
+
+	f();
+}
+
+}
+
 #endif
-
-
-#endif // TRY_SIGNAL_HPP_INCLUDED
 

@@ -30,20 +30,49 @@ POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#ifndef TRY_SIGNAL_HPP_INCLUDED
-#define TRY_SIGNAL_HPP_INCLUDED
+#ifndef TRY_SIGNAL_MINGW_HPP_INCLUDED
+#define TRY_SIGNAL_MINGW_HPP_INCLUDED
 
-#if !defined _WIN32
-// linux
-#include "try_signal_posix.hpp"
-#elif __GNUC__
-// mingw
-#include "try_signal_mingw.hpp"
-#else
-// windows
-#include "try_signal_msvc.hpp"
+#include "signal_error_code.hpp"
+
+#include <setjmp.h> // for jmp_buf
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
 #endif
+#include <windows.h>
 
+namespace sig {
+namespace detail {
 
-#endif // TRY_SIGNAL_HPP_INCLUDED
+struct scoped_handler
+{
+	scoped_handler(jmp_buf* ptr);
+	~scoped_handler();
+	scoped_handler(scoped_handler const&) = delete;
+	scoped_handler& operator=(scoped_handler const&) = delete;
+private:
+	void* _handle;
+	jmp_buf* _previous_ptr;
+};
+
+} // detail namespace
+
+template <typename Fun>
+void try_signal(Fun&& f)
+{
+	jmp_buf buf;
+	int const code = setjmp(buf);
+	// set the thread local jmpbuf pointer, and make sure it's cleared when we
+	// leave the scope
+	sig::detail::scoped_handler scope(&buf);
+	if (code != 0)
+		throw std::system_error(std::error_code(code, seh_category()));
+
+	f();
+}
+
+} // sig namespace
+
+#endif
 

@@ -15,8 +15,9 @@ int main() try
 	std::iota(buf.begin(), buf.end(), 0);
 
 	// disk full or access after EOF are reported as exceptions
-	sig::iovec iov = { buf.data(), map, buf.size() };
-	sig::copy(&iov, 1);
+	sig::try_signal([&]{
+		std::memcpy(map, buf.data(), buf.size());
+	});
 
 	munmap(map, 1024);
 	close(fd);
