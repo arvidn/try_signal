@@ -1,5 +1,6 @@
 #include <stdexcept>
 #include <array>
+#include <cstring> // for memcpy
 
 #include "try_signal.hpp"
 
@@ -9,8 +10,9 @@ int main()
 	char dest[sizeof(buf)];
 
 	{
-		sig::iovec iov{buf, dest, sizeof(buf)};
-		sig::copy(&iov, 1);
+		sig::try_signal([&]{
+			std::memcpy(dest, buf, sizeof(buf));
+		});
 		if (!std::equal(buf, buf + sizeof(buf), dest)) {
 			fprintf(stderr, "ERROR: buffer not copied correctly\n");
 			return 1;
@@ -18,9 +20,11 @@ int main()
 	}
 
 	try {
-		std::array<sig::iovec, 2> iov{{{buf, dest, sizeof(buf)}
-			, {nullptr, dest, 1}}};
-		sig::copy(iov.data(), 2);
+		void* invalid_pointer = nullptr;
+		sig::try_signal([&]{
+			std::memcpy(dest, buf, sizeof(buf));
+			std::memcpy(dest, invalid_pointer, sizeof(buf));
+		});
 	}
 	catch (std::system_error const& e)
 	{
