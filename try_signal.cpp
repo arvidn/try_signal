@@ -48,8 +48,13 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace sig {
 namespace detail {
 
+namespace {
 thread_local sigjmp_buf* volatile jmpbuf = nullptr;
+}
+
+#if !defined _WIN32
 std::atomic_flag once = ATOMIC_FLAG_INIT;
+#endif
 
 scoped_jmpbuf::scoped_jmpbuf(sigjmp_buf* ptr)
 {
@@ -59,7 +64,7 @@ scoped_jmpbuf::scoped_jmpbuf(sigjmp_buf* ptr)
 
 scoped_jmpbuf::~scoped_jmpbuf() { jmpbuf = _previous_ptr; }
 
-void handler(int const signo, siginfo_t* si, void*)
+void handler(int const signo, siginfo_t*, void*)
 {
 	if (jmpbuf)
 		siglongjmp(*jmpbuf, signo);
