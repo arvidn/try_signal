@@ -33,12 +33,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <cassert>
 #include <system_error>
 #include <atomic>
-
-#include <signal.h>
-#include <setjmp.h>
-
-#include <setjmp.h>
-#include <signal.h>
+#include <csetjmp>
+#include <csignal>
 
 #include "try_signal.hpp"
 
@@ -49,7 +45,7 @@ namespace sig {
 namespace detail {
 
 namespace {
-thread_local sigjmp_buf* volatile jmpbuf = nullptr;
+thread_local sigjmp_buf* jmpbuf = nullptr;
 }
 
 #if !defined _WIN32
@@ -60,12 +56,14 @@ scoped_jmpbuf::scoped_jmpbuf(sigjmp_buf* ptr)
 {
 	_previous_ptr = jmpbuf;
 	jmpbuf = ptr;
+	std::atomic_signal_fence(std::memory_order_release);
 }
 
 scoped_jmpbuf::~scoped_jmpbuf() { jmpbuf = _previous_ptr; }
 
 void handler(int const signo, siginfo_t*, void*)
 {
+	std::atomic_signal_fence(std::memory_order_acquire);
 	if (jmpbuf)
 		siglongjmp(*jmpbuf, signo);
 
@@ -99,10 +97,11 @@ void setup_handler()
 namespace sig {
 namespace detail {
 
-thread_local jmp_buf* volatile jmpbuf = nullptr;
+thread_local jmp_buf* jmpbuf = nullptr;
 
 long CALLBACK handler(EXCEPTION_POINTERS* pointers)
 {
+	std::atomic_signal_fence(std::memory_order_acquire);
 	if (jmpbuf)
 		longjmp(*jmpbuf, pointers->ExceptionRecord->ExceptionCode);
 	return EXCEPTION_CONTINUE_SEARCH;
@@ -112,6 +111,7 @@ scoped_handler::scoped_handler(jmp_buf* ptr)
 {
 	_previous_ptr = jmpbuf;
 	jmpbuf = ptr;
+	std::atomic_signal_fence(std::memory_order_release);
 	_handle = AddVectoredExceptionHandler(1, sig::detail::handler);
 }
 scoped_handler::~scoped_handler()

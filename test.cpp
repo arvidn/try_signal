@@ -34,7 +34,7 @@ int main()
 		else {
 			fprintf(stderr, "OK\n");
 		}
-		fprintf(stderr, "exited with system_error exception: %s\n", e.what());
+		fprintf(stderr, "exited with expected system_error exception: %s\n", e.what());
 
 		// we expect this to happen, so return 0
 		return e.code() == std::error_condition(sig::errors::segmentation) ? 0 : 1;
