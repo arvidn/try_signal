@@ -3,7 +3,7 @@ matrix:
   include:
     - env: toolset=gcc
     - os: osx
-      osx_image: xcode8
+      osx_image: xcode11.2
       env: toolset=darwin
 
 branches:
@@ -17,15 +17,19 @@ git:
 addons:
   apt:
     sources:
-    - boost-latest
     - ubuntu-toolchain-r-test
     packages:
-    - libboost1.55-tools-dev
-    - g++-5
+    - libboost-tools-dev
+    - g++-9
 
 install:
 
-  - 'if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update > /dev/null && brew install --quiet boost-build; fi'
+  - 'if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update > /dev/null && brew install boost-build; fi'
+  - 'if [[ $TRAVIS_OS_NAME != "osx" ]]; then
+      export B2=bjam;
+    else
+      export B2=b2;
+    fi'
   - touch ~/user-config.jam
   - 'if [[ $toolset == "gcc" ]]; then
       g++-5 --version;
@@ -35,6 +39,6 @@ install:
 
 script:
 
-  - bjam link=static stage_test
+  - ${B2} link=static stage_test
   - ./test
 
