@@ -39,9 +39,9 @@ namespace {
 
 	struct signal_error_category : std::error_category
 	{
-		const char* name() const noexcept override
+		[[nodiscard]] const char* name() const noexcept override
 		{ return "signal"; }
-		std::string message(int ev) const noexcept override
+		[[nodiscard]] std::string message(int ev) const noexcept override
 		{
 #define SIGNAL_CASE(x) case sig::errors::error_code_enum:: x: return #x;
 			switch (ev)
@@ -80,7 +80,7 @@ namespace {
 			}
 #undef SIGNAL_CASE
 		}
-		std::error_condition default_error_condition(int ev) const noexcept override
+		[[nodiscard]] std::error_condition default_error_condition(int ev) const noexcept override
 		{ return {ev, *this}; }
 	};
 } // anonymous namespace
