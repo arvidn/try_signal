@@ -41,8 +41,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #if !defined _WIN32
 // linux
 
-namespace sig {
-namespace detail {
+namespace sig::detail {
 
 namespace {
 thread_local sigjmp_buf* jmpbuf = nullptr;
@@ -81,8 +80,7 @@ void setup_handler()
 	sigaction(SIGBUS, &sa, nullptr);
 }
 
-} // detail namespace
-} // sig namespace
+} // sig::detail namespace
 
 #elif __GNUC__
 // mingw
