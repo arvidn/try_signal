@@ -18,6 +18,9 @@ environment:
   - variant: debug
     compiler: gcc
     model: 32
+  - variant: debug
+    compiler: gcc
+    model: 64
   - variant: release
     compiler: gcc
     model: 32
@@ -41,7 +44,7 @@ install:
 
 build_script:
 # examples
-- b2.exe warnings-as-errors=on -j2 %compiler% address-model=%model% variant=%variant% stage_test
+- b2.exe warnings=all warnings-as-errors=on -j2 %compiler% address-model=%model% variant=%variant% stage_test
 
 test_script:
 - test
