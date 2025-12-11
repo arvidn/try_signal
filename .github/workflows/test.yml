@@ -23,7 +23,7 @@ jobs:
 
     steps:
     - name: checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v6
       with:
          submodules: true
 
@@ -54,7 +54,7 @@ jobs:
       if: runner.os == 'Windows'
       shell: cmd
       run: |
-        git clone --depth=1 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
+        git clone --depth=1 --branch=boost-1.90.0 https://github.com/boostorg/boost.git
         cd boost
         git submodule update --init tools/build
         bootstrap.bat
